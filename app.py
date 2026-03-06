@@ -1,65 +1,76 @@
-import cv2
+import streamlit as st
 import numpy as np
-from ultralytics import YOLO
-from fruit_database import fruit_database
+import os
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing import image
+from PIL import Image
 
-model = YOLO("yolov8n.pt")
+# Load model
+model = load_model("agrivision_model.keras")
 
-def detect_ripeness(crop):
+# Class labels
+class_names = sorted(os.listdir("dataset/Training"))
 
-    if crop is None or crop.size == 0:
-        return "Unknown"
-
-    hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
-    hue = np.mean(hsv[:,:,0])
-
-    if hue < 20:
-        return "Ripe"
-    elif hue < 40:
-        return "Mid-Ripe"
-    else:
-        return "Unripe"
-
-
-def detect_fruit(image_path):
-
-    img = cv2.imread(image_path)
-
-    results = model(img)
-
-    best_box = None
-    best_conf = 0
-    best_class = None
-
-    for r in results:
-        for box in r.boxes:
-
-            conf = float(box.conf[0])
-            cls = int(box.cls[0])
-            name = model.names[cls].lower()
-
-            if name in fruit_database and conf > best_conf:
-                best_conf = conf
-                best_box = box
-                best_class = name
-
-    if best_box is None:
-        return img, None
-
-    x1,y1,x2,y2 = map(int,best_box.xyxy[0])
-
-    crop = img[y1:y2,x1:x2]
-
-    ripeness = detect_ripeness(crop)
-
-    info = fruit_database[best_class]
-
-    cv2.rectangle(img,(x1,y1),(x2,y2),(0,255,0),3)
-
-    return img,{
-        "fruit":best_class.title(),
-        "ripeness":ripeness,
-        "hybrid":info["hybrid"],
-        "storage":info["storage_days"],
-        "nutrients":info["nutrients"]
+# Fruit information database
+fruit_info = {
+    "Apple": {
+        "Ripeness": "Ripe",
+        "Hybrid": "Fuji",
+        "Storage": "7-10 days",
+        "Nutrients": "Vitamin C"
+    },
+    "Banana": {
+        "Ripeness": "Ripe",
+        "Hybrid": "Cavendish",
+        "Storage": "3-5 days",
+        "Nutrients": "Potassium"
+    },
+    "Orange": {
+        "Ripeness": "Ripe",
+        "Hybrid": "Navel",
+        "Storage": "10-14 days",
+        "Nutrients": "Vitamin C"
     }
+}
+
+st.title("🍎 AgriVision AI - Fruit Analyzer")
+
+st.write("Upload a fruit image to analyze")
+
+uploaded_file = st.file_uploader("Choose a fruit image", type=["jpg","png","jpeg"])
+
+if uploaded_file is not None:
+
+    img = Image.open(uploaded_file)
+    st.image(img, caption="Uploaded Image", use_column_width=True)
+
+    # Preprocess image
+    img = img.resize((100,100))
+    img_array = np.array(img)
+    img_array = np.expand_dims(img_array, axis=0)
+    img_array = img_array / 255.0
+
+    # Prediction
+    prediction = model.predict(img_array)
+
+    predicted_index = np.argmax(prediction)
+    confidence = np.max(prediction) * 100
+
+    predicted_label = class_names[predicted_index]
+
+    st.subheader("🔍 Prediction Result")
+
+    st.write("**Fruit:**", predicted_label)
+    st.write("**Confidence:** {:.2f}%".format(confidence))
+
+    # Show fruit info
+    if predicted_label in fruit_info:
+
+        info = fruit_info[predicted_label]
+
+        st.subheader("📊 Fruit Details")
+
+        st.write("**Ripeness:**", info["Ripeness"])
+        st.write("**Hybrid:**", info["Hybrid"])
+        st.write("**Storage:**", info["Storage"])
+        st.write("**Nutrients:**", info["Nutrients"])
