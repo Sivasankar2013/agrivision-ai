@@ -3,19 +3,16 @@ import numpy as np
 from PIL import Image
 from tensorflow.keras.models import load_model
 
-# Page Config
+# Page config
 st.set_page_config(
     page_title="AgriVision AI",
-    page_icon="🌱",
-    layout="centered"
+    page_icon="🌱"
 )
 
-# Title
 st.title("🌱 AgriVision AI")
-st.subheader("AI Powered Fruit Classification")
-st.write("Upload a fruit image and let AI identify it!")
+st.write("Upload a fruit image to classify")
 
-# Load Model
+# Load model
 @st.cache_resource
 def load_my_model():
     model = load_model("agrivision_model.keras")
@@ -23,7 +20,12 @@ def load_my_model():
 
 model = load_my_model()
 
-# Class Names (edit based on your dataset)
+# Get model input size automatically
+input_shape = model.input_shape
+img_height = input_shape[1]
+img_width = input_shape[2]
+
+# Class names (edit based on dataset)
 class_names = [
     "Apple",
     "Banana",
@@ -32,38 +34,30 @@ class_names = [
     "Orange"
 ]
 
-# File Upload
 uploaded_file = st.file_uploader(
-    "📤 Upload Fruit Image",
-    type=["jpg", "jpeg", "png"]
+    "Upload Image",
+    type=["jpg","png","jpeg"]
 )
 
 if uploaded_file is not None:
 
-    # Show image
     image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="Uploaded Image", use_column_width=True)
+    st.image(image, caption="Uploaded Image")
 
-    # Preprocess image
-    img = image.resize((224, 224))
+    # Resize based on model
+    img = image.resize((img_width, img_height))
+
     img_array = np.array(img)
     img_array = img_array / 255.0
-    img_array = np.reshape(img_array, (1, 224, 224, 3))
+    img_array = np.expand_dims(img_array, axis=0)
 
-    # Prediction
-    with st.spinner("🤖 AI is analyzing the fruit..."):
+    with st.spinner("Analyzing... 🤖"):
         prediction = model.predict(img_array)
-        predicted_class = class_names[np.argmax(prediction)]
-        confidence = np.max(prediction) * 100
 
-    # Result
-    st.success("✅ Prediction Complete")
+    predicted_class = class_names[np.argmax(prediction)]
+    confidence = np.max(prediction) * 100
 
-    st.markdown(f"### 🍎 Fruit Name: **{predicted_class}**")
-    st.markdown(f"### 📊 Confidence: **{confidence:.2f}%**")
+    st.success("Prediction Complete")
 
-    st.progress(int(confidence))
-
-# Footer
-st.markdown("---")
-st.caption("AgriVision AI | Deep Learning Based Fruit Classification")
+    st.write("### 🍎 Fruit:", predicted_class)
+    st.write("### 📊 Confidence:", f"{confidence:.2f}%")
