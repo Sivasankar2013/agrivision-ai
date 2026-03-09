@@ -5,15 +5,19 @@ from tensorflow.keras.models import load_model
 import json
 
 # --------------------------------
-# Page Settings
+# Page Configuration
 # --------------------------------
-st.set_page_config(page_title="AgriVision AI", page_icon="🍎")
+st.set_page_config(
+    page_title="AgriVision AI",
+    page_icon="🍎",
+    layout="centered"
+)
 
 st.title("🍎 AgriVision AI")
-st.write("Upload a fruit image and AI will identify the fruit")
+st.write("Upload a fruit image and AI will identify the fruit.")
 
 # --------------------------------
-# Load Model
+# Load AI Model
 # --------------------------------
 @st.cache_resource
 def load_ai_model():
@@ -25,11 +29,13 @@ model = load_ai_model()
 # --------------------------------
 # Load Class Names
 # --------------------------------
-with open("class_indices.json", "r") as f:
-    class_indices = json.load(f)
+@st.cache_resource
+def load_class_names():
+    with open("class_indices.json", "r") as f:
+        class_indices = json.load(f)
+    return {v: k for k, v in class_indices.items()}
 
-# Reverse dictionary (index → class name)
-class_names = {v: k for k, v in class_indices.items()}
+class_names = load_class_names()
 
 # --------------------------------
 # File Upload
@@ -40,15 +46,16 @@ uploaded_file = st.file_uploader(
 )
 
 # --------------------------------
-# Prediction
+# Prediction Section
 # --------------------------------
 if uploaded_file is not None:
 
     image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="Uploaded Image", use_column_width=True)
 
-    # Resize image (same as training)
-    img = image.resize((100, 100))
+    st.image(image, caption="Uploaded Image", width=400)
+
+    # Resize image to match training size
+    img = image.resize((224, 224))
 
     img_array = np.array(img) / 255.0
     img_array = np.expand_dims(img_array, axis=0)
@@ -72,4 +79,4 @@ if uploaded_file is not None:
 # Footer
 # --------------------------------
 st.markdown("---")
-st.caption("AgriVision AI • AI Fruit Recognition")
+st.caption("AgriVision AI • AI Fruit Recognition System")
